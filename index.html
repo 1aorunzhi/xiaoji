@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>小记 · 一只有记性的电子宠物</title>
+<meta name="description" content="喂它说话，它会长大、会记事、也会记仇。" />
+<link rel="stylesheet" href="./assets/style.css?v=4" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='55' r='38' fill='%23ff8a5c'/><circle cx='38' cy='48' r='6' fill='%2314100e'/><circle cx='62' cy='48' r='6' fill='%2314100e'/></svg>" />
+</head>
+<body>
+
+<div id="app" class="app booting">
+
+  <header class="hud">
+    <div class="hud-left">
+      <span class="pet-name" id="petName">小记</span>
+      <span class="pet-title" id="petTitle">刚出生的小东西</span>
+    </div>
+    <div class="hud-right">
+      <span class="badge" id="lvBadge">Lv.1</span>
+      <span class="badge ghost" id="weightBadge">20g</span>
+      <button class="hud-btn" id="openSheet" type="button">档案</button>
+    </div>
+  </header>
+
+  <div class="mood-strip" title="心情">
+    <div class="mood-fill" id="moodFill"></div>
+  </div>
+
+  <main class="stage" id="stage">
+    <div class="halo"></div>
+
+    <div class="pet-wrap">
+    <svg id="pet" class="pet" viewBox="0 0 300 300" role="img" aria-label="小记的形象">
+      <ellipse class="shadow" cx="150" cy="258" rx="66" ry="9" />
+      <!-- 光环：完全体才有的东西，浮在脚下 -->
+      <ellipse class="part part-halo halo-ring" cx="150" cy="264" rx="76" ry="12" />
+      <g class="phys">
+        <g class="body-group">
+          <!-- 尾巴：少年体之后才长出来 -->
+          <path class="part part-tail tail" d="M220 206 C258 214 282 190 272 158 C268 146 258 140 247 141" />
+          <!-- 幼体只有一根天线，长出耳朵后就没了 -->
+          <g class="part part-stalk on">
+            <path class="antenna" d="M150 84 C150 64 153 54 160 44" />
+            <circle class="antenna-dot" cx="161" cy="42" r="7" />
+          </g>
+          <!-- 耳朵：幼崽期长出 -->
+          <g class="part part-ear ear">
+            <path class="ear-l" d="M100 112 C92 78 96 44 118 32 C140 42 148 78 148 104 Z" />
+            <path class="ear-r" d="M200 112 C208 78 204 44 182 32 C160 42 152 78 152 104 Z" />
+            <path class="ear-in" d="M113 98 C108 74 112 52 120 43 C130 58 136 80 136 95 Z" />
+            <path class="ear-in" d="M187 98 C192 74 188 52 180 43 C170 58 164 80 164 95 Z" />
+          </g>
+          <path class="body" id="petBody" d="M150 72 C206 72 234 112 234 154 C234 202 196 232 150 232 C104 232 66 202 66 154 C66 112 94 72 150 72 Z" />
+          <ellipse class="belly" cx="150" cy="176" rx="46" ry="34" />
+          <!-- 皱起来的眉：成熟体才有的凶相 -->
+          <g class="part part-brow brow">
+            <path d="M99 120 L133 128" />
+            <path d="M201 120 L167 128" />
+          </g>
+          <!-- 斑纹：成熟体之后浮出来 -->
+          <g class="part part-spot spot">
+            <ellipse cx="199" cy="119" rx="10" ry="6.5" />
+            <ellipse cx="101" cy="113" rx="8" ry="5.5" />
+            <ellipse cx="211" cy="151" rx="6.5" ry="4.5" />
+          </g>
+          <!-- 小手：少年体长出 -->
+          <g class="part part-hand hand">
+            <ellipse cx="76" cy="214" rx="17" ry="14" />
+            <ellipse cx="224" cy="214" rx="17" ry="14" />
+          </g>
+          <g class="eye eye-l">
+            <circle class="eye-white" cx="118" cy="146" r="17" />
+            <ellipse class="pupil" cx="118" cy="148" rx="8.5" ry="8.5" />
+            <circle class="glint" cx="121" cy="145" r="3" />
+          </g>
+          <g class="eye eye-r">
+            <circle class="eye-white" cx="182" cy="146" r="17" />
+            <ellipse class="pupil" cx="182" cy="148" rx="8.5" ry="8.5" />
+            <circle class="glint" cx="185" cy="145" r="3" />
+          </g>
+          <ellipse class="cheek cheek-l" cx="98" cy="176" rx="12" ry="7" />
+          <ellipse class="cheek cheek-r" cx="202" cy="176" rx="12" ry="7" />
+          <path class="mouth" id="petMouth" d="M138 186 Q150 197 162 186" />
+        </g>
+      </g>
+    </svg>
+
+    <!-- 它自己弄脏的地方，点一下就能收拾 -->
+    <div class="poop-layer" id="poopLayer" aria-label="地上"></div>
+    </div>
+
+    <p class="statusline" id="statusline">它还没睁眼。</p>
+  </main>
+
+  <section class="chat" id="chat" aria-live="polite"></section>
+
+  <form class="composer" id="composer" autocomplete="off">
+    <button type="button" class="tray-btn" id="trayBtn" aria-label="打开食盆，喂点真的吃的" aria-expanded="false" title="食盆">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 11.2h16c-.3 4.3-3.7 6.8-8 6.8s-7.7-2.5-8-6.8Z" fill="currentColor" />
+        <circle cx="8.4" cy="9.1" r="1.5" fill="currentColor" opacity=".55" />
+        <circle cx="12" cy="7.9" r="1.6" fill="currentColor" opacity=".55" />
+        <circle cx="15.7" cy="9.3" r="1.4" fill="currentColor" opacity=".55" />
+      </svg>
+    </button>
+    <input id="input" type="text" maxlength="140" placeholder="跟它说句话，就是喂它…" />    <button id="send" type="submit" aria-label="喂它">喂</button>
+  </form>
+
+</div>
+
+<div class="tray hidden" id="tray">
+  <div class="tray-top">
+    <span class="tray-title">食盆</span>
+    <span class="tray-sub" id="traySub">肚子 56%</span>
+  </div>
+  <div class="tray-items" id="trayItems"></div>
+  <p class="tray-tip">它挑食。喂过一次才知道它爱吃什么。</p>
+</div>
+
+<div class="sheet-mask hidden" id="sheetMask"></div>
+<aside class="sheet hidden" id="sheet">
+  <div class="sheet-grab"></div>
+  <h2 class="sheet-title" id="sheetTitle">档案</h2>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">等级</div>
+      <div class="card-num" id="sLv">1</div>
+      <div class="card-sub" id="sStage">幼体</div>
+    </div>
+    <div class="card">
+      <div class="card-label">体重</div>
+      <div class="card-num" id="sWeight">20<span class="unit">g</span></div>
+      <div class="card-sub" id="sFeeds">被喂 0 次</div>
+    </div>
+    <div class="card">
+      <div class="card-label">心情</div>
+      <div class="card-num" id="sMood">70</div>
+      <div class="card-sub" id="sMoodWord">还行</div>
+    </div>
+    <div class="card">
+      <div class="card-label">肚子</div>
+      <div class="card-num" id="sFull">56<span class="unit">%</span></div>
+      <div class="card-sub" id="sFullWord">八分饱</div>
+    </div>
+  </div>
+
+  <p class="now-title taste">口味：<b id="sTaste">还没摸清</b></p>
+  <p class="now-title taste" id="sPoopRow" hidden>地上：<b id="sPoop">很干净</b></p>
+
+  <h3 class="sec">性格</h3>
+  <div class="traits">
+    <div class="trait"><span>温柔</span><div class="bar"><i id="tSharp"></i></div><span>毒舌</span></div>
+    <div class="trait"><span>混沌</span><div class="bar alt"><i id="tCalm"></i></div><span>理智</span></div>
+    <div class="trait"><span>社恐</span><div class="bar alt2"><i id="tSocial"></i></div><span>社牛</span></div>
+  </div>
+  <p class="now-title">当前人格：<b id="sTitle">刚出生的小东西</b></p>
+
+  <h3 class="sec">记仇簿 <span class="hint">它不肯忘的事</span></h3>
+  <ul class="grudges" id="grudgeList"></ul>
+
+  <h3 class="sec">记忆碎片 <span class="hint">一共 <b id="memCount">0</b> 条</span></h3>
+  <ul class="memories" id="memList"></ul>
+
+  <h3 class="sec">存档码 <span class="hint">换设备接着养</span></h3>
+  <div class="save-box">
+    <textarea id="saveCode" readonly rows="3" placeholder="点下面按钮生成"></textarea>
+    <div class="save-actions">
+      <button type="button" id="genCode">生成存档码</button>
+      <button type="button" id="loadCode">读入存档码</button>
+    </div>
+  </div>
+
+  <button type="button" class="danger-link" id="resetBtn">重新养一只</button>
+</aside>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script type="module" src="./src/main.js?v=4"></script>
+</body>
+</html>
