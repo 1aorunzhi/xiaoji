@@ -22,5 +22,6 @@ KEY_HEADER = "x-wb-webapp-access-key"
 PREFERRED_MODELS = ("deepseek-v4.1-flash", "deepseek-v4-flash", "glm-5.3-flash", "hy3")
 
 DB_PATH = os.getenv("XIAOJI_DB", "data/xiaoji.db")
-HOST = os.getenv("XIAOJI_HOST", "127.0.0.1")
-PORT = int(os.getenv("XIAOJI_PORT", "8000"))
+# 部署到云端时平台会注入 PORT；本地开发可用 XIAOJI_PORT 覆盖
+HOST = os.getenv("XIAOJI_HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT") or os.getenv("XIAOJI_PORT", "8000"))
