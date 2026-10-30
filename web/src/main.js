@@ -201,7 +201,10 @@ async function boot() {
     el.input.focus();
     if (!info.aiReady) ui.toast('大脑还没连上，先当个哑巴宠物养着', 4000);
     if (info.awayHours > 4 || !(info.history || []).length) {
-      setTimeout(() => run(api.act('/api/speak', { kind: 'return' })), 800);
+      // 把「离开了多久」一起带过去：boot 结算过一次离线时间，
+      // 后端这会儿已经算不出离开几小时了
+      const away = info.awayHours || 0;
+      setTimeout(() => run(api.act('/api/speak', { kind: 'return', away })), 800);
     }
   }
 

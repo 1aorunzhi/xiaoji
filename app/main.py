@@ -70,6 +70,9 @@ class NameBody(BaseModel):
 
 class KindBody(BaseModel):
     kind: str = "return"
+    # 前端从 /api/boot 拿到「离开了多久」，回来时再传一次。
+    # boot 里已经结算过离线时间，到这时候 last_seen 早被刷新成现在了。
+    away: float = 0.0
 
 
 # ---------------------------------------------------------------- 页面
@@ -140,7 +143,7 @@ async def pay(body: IdBody):
 
 @app.post("/api/speak")
 async def speak(body: KindBody):
-    return sse(service.speak(body.kind))
+    return sse(service.speak(body.kind, body.away))
 
 
 @app.post("/api/tick")

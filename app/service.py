@@ -504,25 +504,29 @@ async def _poop_talk(pet: Pet, result: dict, now: int) -> AsyncIterator[dict]:
 # ---------------------------------------------------------------- 让它开口
 
 
-async def speak(kind: str) -> AsyncIterator[dict]:
+async def speak(kind: str, away: float = 0.0) -> AsyncIterator[dict]:
     pet = store.load()
     if pet is None:
         yield {"type": "error", "text": "还没有宠物。"}
         return
-    async for event in _speak(pet, kind):
+    async for event in _speak(pet, kind, away):
         yield event
     store.save(pet, now_ms())
     yield {"type": "done"}
 
 
-async def _speak(pet: Pet, kind: str) -> AsyncIterator[dict]:
+async def _speak(pet: Pet, kind: str, away: float = 0.0) -> AsyncIterator[dict]:
     now = now_ms()
     info = pet.apply_offline(now)
+    # boot 已经结算过一次，last_seen 被刷成了「现在」，这里算出来是 0。
+    # 所以前端把它那会儿拿到的 awayHours 带过来，不然「久别重逢」这句
+    # 它就不知道自己被晾了多久，只会顺着别的账往下说。
+    hours = max(info["away_hours"], away)
     messages = [
         *pet.messages(8),
         {"role": "user", "content": brain.directive(kind, pet)},
     ]
-    system = brain.build_system_prompt(pet, now, {"away_hours": info["away_hours"]})
+    system = brain.build_system_prompt(pet, now, {"away_hours": hours})
 
     yield {"type": "thinking", "on": True}
     buffer: list[str] = []
