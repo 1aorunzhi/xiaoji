@@ -1,10 +1,10 @@
-import {
-  levelOf, weightOf, stageOf, moodWord, moodLabelShort, titleOf,
-  activeGrudges, howText, expToNext, expProgress,
-  FOODS, tasteOf, fullWord, tasteText, poopWord,
-} from './state.js';
+/**
+ * 纯渲染层。
+ *
+ * 这个文件里没有任何业务计算：等级、体重、称号、口味、要不要提醒地上有屎，
+ * 全部由 Python 后端算好后放在 state 里传过来。前端只负责画。
+ */
 
-// 档案里点「给了」时回调，由 main.js 注入
 let payHandler = null;
 export function setPayHandler(fn) {
   payHandler = fn;
@@ -44,26 +44,28 @@ const MOUTHS = {
   sad: 'M137 194 Q150 181 163 194',
 };
 
-export function renderHud(pet) {
-  const lv = levelOf(pet.exp);
-  const weight = weightOf(pet.exp);
-  const mood = Math.round(pet.mood);
+/* ---------- 主界面 ---------- */
 
-  el.petName.textContent = pet.name;
-  el.petTitle.textContent = titleOf(pet.traits);
+export function renderHud(state) {
+  if (!state) return;
+  const lv = state.level;
+  const mood = state.mood;
+
+  el.petName.textContent = state.name;
+  el.petTitle.textContent = state.title;
   el.lvBadge.textContent = `Lv.${lv}`;
-  el.weightBadge.textContent = `${weight}g`;
+  el.weightBadge.textContent = `${state.weight}g`;
 
-  el.moodFill.style.width = `${expProgress(pet.exp)}%`;
+  el.moodFill.style.width = `${state.expPercent}%`;
   el.moodFill.classList.remove('low');
   el.app.classList.toggle('mood-low', mood < 30);
 
   // 形态演化：长大是「长出新的部件」，不只是把同一颗球放大
   const PART_AT = {
-    'part-ear': 3,   // 幼崽：长出两只耳朵
-    'part-hand': 5,  // 少年体：长出小手
-    'part-tail': 6,  // 少年体：长出尾巴
-    'part-brow': 8,  // 成熟体：开始皱眉头
+    'part-ear': 3, // 幼崽：长出两只耳朵
+    'part-hand': 5, // 少年体：长出小手
+    'part-tail': 6, // 少年体：长出尾巴
+    'part-brow': 8, // 成熟体：开始皱眉头
     'part-spot': 10, // 成熟体后期：背上浮出斑纹
     'part-halo': 11, // 完全体：头顶多一圈东西
   };
@@ -82,7 +84,7 @@ export function renderHud(pet) {
   el.pet.classList.toggle('mature', lv >= 8 && lv <= 10);
   el.pet.classList.toggle('ultra', lv >= 11);
 
-  // 体型随等级长大：SVG 里球体只占容器一半，所以容器必须涨得更狠，肉眼才看得出变化
+  // 体型随等级长大：SVG 里球体只占容器一半，所以容器必须涨得更狠
   const big = Math.min(252, 146 + (lv - 1) * 8.2);
   const small = Math.min(168, 104 + (lv - 1) * 5.2);
   el.pet.style.setProperty('--pet-size', `${big}px`);
@@ -96,16 +98,13 @@ export function renderHud(pet) {
 
   el.petMouth.setAttribute('d', mood >= 66 ? MOUTHS.happy : mood >= 36 ? MOUTHS.neutral : MOUTHS.sad);
 
-  const next = expToNext(pet.exp);
-  el.statusline.dataset.base = next > 0
-    ? `还差 ${next} 点经验升级 · ${moodLabelShort(mood)}`
-    : `已经长到头了 · ${moodLabelShort(mood)}`;
+  el.statusline.dataset.base = state.statusline || '';
+  el.statusline.dataset.dirty = state.dirty || '';
 
-  // 地上那几坨要跟着任何一次刷新同步（它同时负责把状态行拼完整）
-  renderPoop(pet);
+  renderPoop(state);
+  refreshStatusline();
 }
 
-/** 状态行 = 升级进度 + （地上实在太多时的）提醒 */
 function refreshStatusline() {
   if (!el.statusline) return;
   el.statusline.textContent = `${el.statusline.dataset.base || ''}${el.statusline.dataset.dirty || ''}`;
@@ -163,20 +162,7 @@ export function addStreamingMessage(role = 'pet') {
   };
 }
 
-export function appendDelta(node, delta) {
-  node.textContent += delta;
-  const near = el.chat.scrollHeight - el.chat.scrollTop - el.chat.clientHeight < 120;
-  if (near) el.chat.scrollTop = el.chat.scrollHeight;
-}
-
-export function withCaret(node) {
-  const c = document.createElement('span');
-  c.className = 'caret';
-  node.appendChild(c);
-  return () => c.remove();
-}
-
-export function addChip(text, kind = 'fact') {
+export function addChip(text, kind = 'fact', id = '') {
   const div = document.createElement('div');
   const extra =
     kind === 'grudge' ? ' grudge'
@@ -185,12 +171,18 @@ export function addChip(text, kind = 'fact') {
     : kind === 'food' ? ' food'
     : '';
   div.className = `memo-chip${extra}`;
+  if (id) div.dataset.chipId = id;
   const dot = document.createElement('span');
   dot.className = 'dot';
   div.append(dot, document.createTextNode(text));
   el.chat.appendChild(div);
   scrollDown();
   return div;
+}
+
+export function dropChip(id) {
+  const node = el.chat.querySelector(`[data-chip-id="${id}"]`);
+  if (node) node.remove();
 }
 
 /* ---------- 地上 ---------- */
@@ -210,13 +202,13 @@ const POOP_SVG = `
   </svg>`;
 
 /**
- * 地上的东西跟着存档走。只增删差异，不整体重建 —— 重建会让掉落动画重播一遍
+ * 地上的东西跟着状态走。只增删差异，不整体重建 —— 重建会让掉落动画重播
  */
-export function renderPoop(pet) {
+export function renderPoop(state) {
   const layer = el.poopLayer;
   if (!layer) return;
 
-  const list = Array.isArray(pet.poop) ? pet.poop : [];
+  const list = Array.isArray(state.poop) ? state.poop : [];
   const ids = new Set(list.map((p) => p.id));
 
   for (const node of [...layer.children]) {
@@ -241,14 +233,8 @@ export function renderPoop(pet) {
     btn.innerHTML = POOP_SVG;
     layer.appendChild(btn);
   }
-
-  // 1～2 坨靠画面就能看见，不啰嗦；堆到 3 坨以上才在状态行提醒
-  const dirty = list.length >= 3 ? ` · 地上 ${list.length} 坨没收拾` : '';
-  if (el.statusline) el.statusline.dataset.dirty = dirty;
-  refreshStatusline();
 }
 
-/** 点一下，缩回地里 */
 export function sweepPoop(node, done) {
   if (!node) {
     done && done();
@@ -271,21 +257,18 @@ export const FOOD_ICONS = {
   mystery: `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 5c6 0 10 3.4 10 8.4 0 3.6-2 5.4-3.4 7.4-1.2 1.8-1.6 3-1.6 4.4 0 1.4-1.2 2.2-5 2.2s-5-.8-5-2.2c0-1.4-.4-2.6-1.6-4.4C8 18.8 6 17 6 13.4 6 8.4 10 5 16 5Z" fill="#c9b8a8"/><path d="M13 12.6c0-1.6 1.3-2.7 3-2.7s3 1.1 3 2.7c0 1.4-1.2 1.9-1.9 2.8-.4.5-.5.9-.5 1.6" fill="none" stroke="#6b5d54" stroke-width="2" stroke-linecap="round"/><circle cx="16.6" cy="21.4" r="1.4" fill="#6b5d54"/></svg>`,
 };
 
-export function renderTray(pet) {
+export function renderTray(state) {
   const box = el.trayItems;
-  if (!box) return;
+  if (!box || !state) return;
   box.innerHTML = '';
-  for (const f of FOODS) {
-    const taste = tasteOf(pet, f.id);
-    const known = (pet.ate || []).includes(f.id);
-
+  for (const f of state.foods || []) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'food';
     btn.dataset.id = f.id;
     // 喂过之后它才肯把偏好露出来
-    if (known && taste === 'love') btn.classList.add('love');
-    if (known && taste === 'hate') btn.classList.add('hate');
+    if (f.known && f.taste === 'love') btn.classList.add('love');
+    if (f.known && f.taste === 'hate') btn.classList.add('hate');
     btn.title = f.note;
 
     const ico = document.createElement('span');
@@ -303,12 +286,12 @@ export function renderTray(pet) {
     btn.append(ico, name, exp);
     box.appendChild(btn);
   }
-  el.traySub.textContent = `肚子 ${Math.round(pet.full)}% · ${fullWord(pet.full)}`;
+  el.traySub.textContent = `肚子 ${state.full}% · ${state.fullWord}`;
 }
 
-export function openTray(pet) {
+export function openTray(state) {
   if (!el.tray) return;
-  renderTray(pet);
+  renderTray(state);
   el.tray.classList.remove('hidden');
   el.trayBtn.classList.add('open');
   el.trayBtn.classList.remove('hint');
@@ -322,8 +305,8 @@ export function closeTray() {
   el.trayBtn.setAttribute('aria-expanded', 'false');
 }
 
-export function toggleTray(pet) {
-  if (el.tray.classList.contains('hidden')) openTray(pet);
+export function toggleTray(state) {
+  if (el.tray.classList.contains('hidden')) openTray(state);
   else closeTray();
 }
 
@@ -414,43 +397,43 @@ function setBar(node, value) {
   }
 }
 
-export function renderSheet(pet) {
-  const lv = levelOf(pet.exp);
-  const mood = Math.round(pet.mood);
+export function renderSheet(state) {
+  if (!state) return;
+  $('sheetTitle').textContent = `${state.name}的档案`;
+  $('sLv').textContent = state.level;
+  $('sStage').textContent = state.stage;
+  $('sWeight').innerHTML = `${state.weight}<span class="unit">g</span>`;
+  $('sFeeds').textContent = `被喂 ${state.feeds} 次`;
+  $('sMood').textContent = state.mood;
+  $('sMoodWord').textContent = state.moodWord;
+  $('sTitle').textContent = state.title;
 
-  $('sheetTitle').textContent = `${pet.name}的档案`;
-  $('sLv').textContent = lv;
-  $('sStage').textContent = stageOf(lv);
-  $('sWeight').innerHTML = `${weightOf(pet.exp)}<span class="unit">g</span>`;
-  $('sFeeds').textContent = `被喂 ${pet.feeds} 次`;
-  $('sMood').textContent = mood;
-  $('sMoodWord').textContent = moodWord(mood);
-  $('sTitle').textContent = titleOf(pet.traits);
-
-  const full = Math.round(pet.full);
-  $('sFull').innerHTML = `${full}<span class="unit">%</span>`;
-  $('sFullWord').textContent = fullWord(pet.full);
-  $('sTaste').textContent = tasteText(pet);
+  $('sFull').innerHTML = `${state.full}<span class="unit">%</span>`;
+  $('sFullWord').textContent = state.fullWord;
+  $('sTaste').textContent = state.tasteText;
 
   // 地上有东西才值得占一行
-  const poops = Array.isArray(pet.poop) ? pet.poop.length : 0;
   const poopRow = $('sPoopRow');
   if (poopRow) {
-    poopRow.hidden = poops === 0 && (pet.cleaned || 0) === 0;
+    const poops = (state.poop || []).length;
+    poopRow.hidden = poops === 0 && (state.cleaned || 0) === 0;
     $('sPoop').textContent = poops
-      ? `${poopWord(poops)} · 已收拾 ${pet.cleaned || 0} 次`
-      : `干净 · 已收拾 ${pet.cleaned || 0} 次`;
+      ? `${state.poopWord} · 已收拾 ${state.cleaned || 0} 次`
+      : `干净 · 已收拾 ${state.cleaned || 0} 次`;
   }
 
-  setBar($('tSharp'), pet.traits.sharp);
-  setBar($('tCalm'), pet.traits.calm);
-  setBar($('tSocial'), pet.traits.social);
+  const traits = state.traits || {};
+  setBar($('tSharp'), traits.sharp ?? 50);
+  setBar($('tCalm'), traits.calm ?? 50);
+  setBar($('tSocial'), traits.social ?? 50);
 
   const list = $('grudgeList');
   list.innerHTML = '';
-  const grudges = pet.memories.filter((m) => m.kind === 'grudge');
+  const memories = state.memories || [];
+  const grudges = memories.filter((m) => m.kind === 'grudge');
   if (!grudges.length) {
-    list.innerHTML = '<li class="empty" style="background:none;border:none;color:var(--ink-faint)">它还什么都没记恨你。</li>';
+    list.innerHTML =
+      '<li class="empty" style="background:none;border:none;color:var(--ink-faint)">它还什么都没记恨你。</li>';
   } else {
     for (const g of grudges.slice(0, 12)) {
       const li = document.createElement('li');
@@ -460,7 +443,7 @@ export function renderSheet(pet) {
       head.className = 'grudge-head';
       const age = document.createElement('span');
       age.className = 'age';
-      age.textContent = howText(g);
+      age.textContent = g.howText || '';
       const txt = document.createElement('span');
       txt.className = 'grudge-text';
       txt.textContent = g.text;
@@ -494,8 +477,8 @@ export function renderSheet(pet) {
 
   const memList = $('memList');
   memList.innerHTML = '';
-  const others = pet.memories.filter((m) => m.kind !== 'grudge').slice(0, 14);
-  $('memCount').textContent = pet.memories.length;
+  const others = memories.filter((m) => m.kind !== 'grudge').slice(0, 14);
+  $('memCount').textContent = memories.length;
   if (!others.length) {
     memList.innerHTML = '<li class="empty">脑子里还是空的。</li>';
   } else {
@@ -507,8 +490,8 @@ export function renderSheet(pet) {
   }
 }
 
-export function openSheet(pet) {
-  renderSheet(pet);
+export function openSheet(state) {
+  renderSheet(state);
   el.sheet.classList.remove('hidden');
   el.sheetMask.classList.remove('hidden');
 }
@@ -520,7 +503,7 @@ export function closeSheet() {
 
 /* ---------- 眼神跟随 ---------- */
 
-export function initEyeTracking(pet) {
+export function initEyeTracking() {
   if (matchMedia('(pointer: coarse)').matches) return;
   const pupils = Array.from(document.querySelectorAll('.pupil'));
   window.addEventListener('mousemove', (e) => {
@@ -531,7 +514,7 @@ export function initEyeTracking(pet) {
     const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / 260));
     const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / 260));
     for (const p of pupils) p.style.transform = `translate(${dx * 3.4}px, ${dy * 3}px)`;
-    const ang = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+    const ang = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI;
     el.pet.style.setProperty('--tilt', `${Math.max(-4, Math.min(4, ang / 22))}deg`);
   });
 }

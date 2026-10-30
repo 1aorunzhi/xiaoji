@@ -1,9 +1,21 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 存档：跑到本地就会生成，不该进仓库
+data/
+*.db
+*.db-journal
+
+# 编辑器 / 系统
 node_modules/
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+.workbuddy/
 *.log
 out/
 /screenshots/
-.workbuddy/
-.vscode/
-.idea/
