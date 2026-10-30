@@ -2,6 +2,8 @@
 
 > 喂它说话，它会长大、会记事，也会记仇。
 
+**在线体验**：https://xiaoji-pet.app.workbuddy.host/?sharecode=UQ4AI2YRTN
+
 ![同一只小记，六个等级长出来的样子](./docs/screenshots/06-六个阶段.png)
 
 **后端（Python / FastAPI）**：[`app/brain.py`](./app/brain.py) 人格与提示词 · [`app/service.py`](./app/service.py) 交互事件流 · [`app/llm.py`](./app/llm.py) 模型调用 · [`app/store.py`](./app/store.py) SQLite 存档 · [`app/domain/`](./app/domain) 成长 / 食物 / 记忆 / 记仇 / 卫生
