@@ -5,6 +5,7 @@
 ![同一只小记，六个等级长出来的样子](./docs/screenshots/06-六个阶段.png)
 
 **源码**：[`index.html`](./index.html) · [`src/`](./src) — [brain.js](./src/brain.js) 人格与提示词 · [state.js](./src/state.js) 数值与存档 · [ui.js](./src/ui.js) 渲染与交互 · [main.js](./src/main.js) 流程 · [cloud.js](./src/cloud.js) 模型调用 · [`assets/style.css`](./assets/style.css) 全部动画
+
 **文档**：[图文教程](./docs/图文教程.md) · [创作说明](./docs/创作说明.md)
 
 本地预览：一行命令即可启动（见下文「本地跑起来」），不需要装依赖、不需要 API Key。
